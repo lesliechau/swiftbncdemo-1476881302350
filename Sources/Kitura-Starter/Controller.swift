@@ -42,41 +42,83 @@ public class Controller {
     router.all("/", middleware: StaticFileServer())
 
     // Basic GET request
-    router.get("/hello", handler: getHello)
+    router.get("/api/v1/emplsalaries", handler: getEmployeeSalaries)
 
-    // Basic POST request
-    router.post("/hello", handler: postHello)
-
-    // JSON Get request
-    router.get("/json", handler: getJSON)
+   
   }
 
-  public func getHello(request: RouterRequest, response: RouterResponse, next: @escaping () -> Void) throws {
-    Log.debug("GET - /hello route handler...")
-    response.headers["Content-Type"] = "text/plain; charset=utf-8"
-    try response.status(.OK).send("Hello from Kitura-Starter!").end()
-  }
-
-  public func postHello(request: RouterRequest, response: RouterResponse, next: @escaping () -> Void) throws {
-    Log.debug("POST - /hello route handler...")
-    response.headers["Content-Type"] = "text/plain; charset=utf-8"
-    if let name = try request.readString() {
-      try response.status(.OK).send("Hello \(name), from Kitura-Starter!").end()
-    } else {
-      try response.status(.OK).send("Kitura-Starter received a POST request!").end()
-    }
-  }
-
-  public func getJSON(request: RouterRequest, response: RouterResponse, next: @escaping () -> Void) throws {
-    Log.debug("GET - /json route handler...")
+  public func getEmployeeSalaries(request: RouterRequest, response: RouterResponse, next: @escaping () -> Void) throws {
+    Log.debug("GET - /api/v1/emplsalaries route handler...")
     response.headers["Content-Type"] = "application/json; charset=utf-8"
-    var jsonResponse = JSON([:])
-    jsonResponse["framework"].stringValue = "Kitura"
-    jsonResponse["applicationName"].stringValue = "Kitura-Starter"
-    jsonResponse["company"].stringValue = "IBM"
-    jsonResponse["organization"].stringValue = "Swift @ IBM"
-    jsonResponse["location"].stringValue = "Austin, Texas"
-    try response.status(.OK).send(json: jsonResponse).end()
+    
+    let host = "ibmswift.cloudant.com"
+	let username = "ibmswift"
+	let password = "s3rv3rs1desw1ft"
+	let databaseName = "empldb"
+	
+	typealias StringValuePair = [String : Any]
+	protocol StringValuePairConvertible {
+	    var stringValuePairs: StringValuePair {get}
+	}
+	
+	extension Array where Element : StringValuePairConvertible {
+	    var stringValuePairs: [StringValuePair] {
+	        return self.map { $0.stringValuePairs }
+	    }
+	}
+	
+	let connectionProperties = ConnectionProperties(
+	    host: host,
+	    port: 80,
+	    secured: false,
+	    username: username,
+	    password: password
+	)
+	
+	struct Employee {
+	    let empno: String
+	    let firstName: String
+	    let lastName: String
+	    let salary: Int
+	
+	    init(json: JSON) {
+	        empno = json["empno"].stringValue.capitalized
+	        firstName = json["firstnme"].stringValue.capitalized
+	        lastName = json["lastname"].stringValue.capitalized
+	        salary = json["salary"].intValue
+	    }
+	}
+	
+	extension Employee: StringValuePairConvertible {
+	    var stringValuePairs: [String: Any] {
+	        return ["empno": self.empno,
+	                "firstName": self.firstName,
+	                "lastName": self.lastName,
+	                "salary": self.salary]
+	    }
+	}
+	
+	let cloudantClient = CouchDBClient(connectionProperties: connectionProperties)
+	let database = cloudantClient.database(databaseName)
+    
+    database.retrieveAll(includeDocuments: true) { json, error in
+    
+        guard let json = json else {
+            response.status(.badRequest)
+            return
+        }
+
+        let employees = json["rows"].map { _, row in
+            return Employee.init(json: row["doc"])
+        }
+
+        response.status(.OK).send(json: JSON(employees.stringValuePairs))
+        next()
+    }
+    
+    
   }
+
+ 
 
 }
