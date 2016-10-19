@@ -20,6 +20,21 @@ import LoggerAPI
 import CloudFoundryEnv
 import CouchDB
 
+extension Array where Element : StringValuePairConvertible {
+    var stringValuePairs: [StringValuePair] {
+        return self.map { $0.stringValuePairs }
+    }
+}
+
+extension Employee: StringValuePairConvertible {
+    var stringValuePairs: [String: Any] {
+        return ["empno": self.empno,
+                "firstName": self.firstName,
+                "lastName": self.lastName,
+                "salary": self.salary]
+    }
+}
+
 public class Controller {
 
   let router: Router
@@ -62,11 +77,6 @@ public class Controller {
 	    var stringValuePairs: StringValuePair {get}
 	}
 	
-	extension Array where Element : StringValuePairConvertible {
-	    var stringValuePairs: [StringValuePair] {
-	        return self.map { $0.stringValuePairs }
-	    }
-	}
 	
 	let connectionProperties = ConnectionProperties(
 	    host: host,
@@ -90,14 +100,6 @@ public class Controller {
 	    }
 	}
 	
-	extension Employee: StringValuePairConvertible {
-	    var stringValuePairs: [String: Any] {
-	        return ["empno": self.empno,
-	                "firstName": self.firstName,
-	                "lastName": self.lastName,
-	                "salary": self.salary]
-	    }
-	}
 	
 	let cloudantClient = CouchDBClient(connectionProperties: connectionProperties)
 	let database = cloudantClient.database(databaseName)
@@ -121,5 +123,5 @@ public class Controller {
   }
 
  
-
 }
+
