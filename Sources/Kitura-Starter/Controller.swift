@@ -18,6 +18,7 @@ import Kitura
 import SwiftyJSON
 import LoggerAPI
 import CloudFoundryEnv
+import CouchDB
 
 public class Controller {
 
